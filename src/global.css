@@ -1,6 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Agu+Display&family=Grenze+Gotisch:wght@100..900&family=Tektur:wght@400..900&display=swap');
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Pixel";
+  src: url('./assets/fonts/Pixel.ttf') format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --color-foreground: #0e0517;
   --color-primary: #cc6c8c;

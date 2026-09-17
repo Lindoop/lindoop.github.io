@@ -1,0 +1,31 @@
+{
+  "mags": {
+    "name": "Mags",
+    "hp": 34, "atk": 9, "def": 4, "speed": 15,
+    "element": "bow",
+    "bodyDx": 0.078,
+    "sheets": { "idle": "combatIdle", "entry": "enter" },
+    "basic": { "name": "Arrow Shot",          "key": "arrowShot",    "sheet": "basicAtk", "releaseFrame": 6, "spCost": 0 },
+    "skill": { "name": "Flourish", "key": "flourish", "sheet": "flourish", "releaseFrame": 6, "spCost": 1, "motion": true }
+  },
+  "queenie": {
+    "name": "Queenie",
+    "hp": 40, "atk": 6, "def": 7, "speed": 11,
+    "element": "oil",
+    "bodyDx": -0.032,
+    "sheets": { "idle": "queenieIdleRight", "entry": "queenieIdleRight" },
+    "basic": { "name": "Caustic Brew",  "key": "causticBrew", "sheet": "queenieBasic", "releaseFrame": 5, "spCost": 0 },
+    "skill": { "name": "Grease",  "key": "grease", "sheet": "queenieSkill", "releaseFrame": 8, "spCost": 1 }
+  },
+  "candy": {
+    "name": "Candy",
+    "hp": 22, "atk": 13, "def": 1, "speed": 8,
+    "element": "fire",
+    "idleFps": 5,
+    "bodyDx": 0.010,
+    "cellW": 1505, "cellH": 977,
+    "sheets": { "idle": "candyIdleRight", "entry": "candyIdleRight" },
+    "basic": { "name": "Fire Bolt",     "key": "fireBolt",     "sheet": "candyBasic", "releaseFrame": 6, "spCost": 0 },
+    "skill": { "name": "Scorching Ray", "key": "scorchingRay", "sheet": "candySkill", "releaseFrame": 6, "spCost": 1, "charge": true }
+  }
+}
