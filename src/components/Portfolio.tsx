@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import "./Portfolio.css";
 
-const HERO_NEAR = new URL("../assets/hero_bg.png", import.meta.url).href;
+const CAFE_LAYERS = [
+  new URL("../assets/cafe/background.png", import.meta.url).href,
+  new URL("../assets/cafe/objects.png", import.meta.url).href,
+  new URL("../assets/cafe/counter.png", import.meta.url).href,
+  new URL("../assets/cafe/foreground.png", import.meta.url).href,
+];
+const ART_MIN = 1200;
+const DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 
 const EXPERIENCE = [
   {
@@ -81,6 +88,16 @@ function sunAltitude(t: number): number {
 const SKY_HORIZON = -0.833;
 const SKY_TWILIGHT = -12;
 
+const SKY_CYCLE = ["night", "dawn", "sunrise", "day", "sunset", "dusk"];
+const SKY_URL: Record<string, string> = {
+  night: new URL("../assets/sky/night.webp", import.meta.url).href,
+  dawn: new URL("../assets/sky/dawn.webp", import.meta.url).href,
+  sunrise: new URL("../assets/sky/sunrise.webp", import.meta.url).href,
+  day: new URL("../assets/sky/day.webp", import.meta.url).href,
+  sunset: new URL("../assets/sky/sunset.webp", import.meta.url).href,
+  dusk: new URL("../assets/sky/dusk.webp", import.meta.url).href,
+};
+
 function skyPhase(now: number = Date.now()) {
   const alt = sunAltitude(now);
   const rising = alt > sunAltitude(now - 600000);
@@ -97,46 +114,98 @@ const LINKS = {
 };
 
 export default function Portfolio() {
-  const [sky, setSky] = useState(skyPhase);
+  const [skyA, setSkyA] = useState(skyPhase);
+  const [skyB, setSkyB] = useState<string | undefined>(undefined);
+  const [onB, setOnB] = useState(false);
+  const [day, setDay] = useState(() => DAYS[new Date().getDay()]);
+  const sky = onB ? (skyB as string) : skyA;
+
   useEffect(() => {
-    const id = setInterval(() => setSky(skyPhase()), 60000);
+    const id = setInterval(() => {
+      const next = skyPhase();
+      setDay(DAYS[new Date().getDay()]);
+      setOnB((b) => {
+        if (next === (b ? skyB : skyA)) return b;
+        if (b) setSkyA(next); else setSkyB(next);
+        return !b;
+      });
+    }, 60000);
     return () => clearInterval(id);
-  }, []);
+  }, [skyA, skyB]);
+
+  useEffect(() => {
+    const i = SKY_CYCLE.indexOf(sky);
+    if (i < 0) return;
+    const im = new Image();
+    im.src = SKY_URL[SKY_CYCLE[(i + 1) % SKY_CYCLE.length]];
+  }, [sky]);
 
   const [view, setView] = useState<"inside" | "outside">("inside");
   const [anim, setAnim] = useState<"out" | "in" | undefined>(undefined);
   const [hot, setHot] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+
+  const navRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setNavOpen(false); };
+    const away = (e: PointerEvent) => {
+      if (!navRef.current?.contains(e.target as Node)) setNavOpen(false);
+    };
+    window.addEventListener("keydown", esc);
+    document.addEventListener("pointerdown", away);
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.removeEventListener("pointerdown", away);
+    };
+  }, [navOpen]);
   const heroRef = useRef<HTMLElement | null>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
   const maskRef = useRef<{ w: number; h: number; a: Uint8Array } | null>(null);
 
   useEffect(() => {
-    const img = new Image();
-    img.src = HERO_NEAR;
-    img.onload = () => {
-      const c = document.createElement("canvas");
-      c.width = img.naturalWidth;
-      c.height = img.naturalHeight;
-      const g = c.getContext("2d");
-      if (!g) return;
-      g.drawImage(img, 0, 0);
-      const d = g.getImageData(0, 0, c.width, c.height).data;
-      const a = new Uint8Array(c.width * c.height);
-      for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
-      maskRef.current = { w: c.width, h: c.height, a };
-    };
+    let alive = true;
+    Promise.all(
+      CAFE_LAYERS.map(
+        (src) =>
+          new Promise<HTMLImageElement>((res, rej) => {
+            const im = new Image();
+            im.onload = () => res(im);
+            im.onerror = rej;
+            im.src = src;
+          })
+      )
+    )
+      .then((imgs) => {
+        if (!alive) return;
+        const c = document.createElement("canvas");
+        c.width = imgs[0].naturalWidth;
+        c.height = imgs[0].naturalHeight;
+        const g = c.getContext("2d");
+        if (!g) return;
+        imgs.forEach((im) => g.drawImage(im, 0, 0));
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        const a = new Uint8Array(c.width * c.height);
+        for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+        maskRef.current = { w: c.width, h: c.height, a };
+      })
+      .catch(() => {});
+    return () => { alive = false; };
   }, []);
 
   const holeAt = (cx: number, cy: number) => {
     const m = maskRef.current;
     const el = artRef.current;
-    if (!m || !el || window.innerWidth <= 1000) return null;
+    if (!m || !el || window.innerWidth <= 800) return null;
     const r = el.getBoundingClientRect();
-    const px = (cx - r.left) / r.width;
-    const py = (cy - r.top) / r.height;
+    const drawW = Math.max(ART_MIN, r.width);
+    const px = (cx - (r.left + (r.width - drawW) / 2)) / drawW;
+    const py = (cy - r.top) / (drawW * m.h / m.w);
     if (px < 0 || py < 0 || px > 1 || py > 1) return null;
     const i = Math.floor(py * m.h) * m.w + Math.floor(px * m.w);
-    return m.a[i] < 8 ? { px, py } : null;
+    const ex = ((r.width - drawW) / 2 + px * drawW) / r.width;
+    return m.a[i] < 8 ? { px, py, ex } : null;
   };
 
   const onHeroClick = (e: React.MouseEvent) => {
@@ -144,7 +213,7 @@ export default function Portfolio() {
     if (view === "outside") { setView("inside"); setAnim("in"); return; }
     const hit = holeAt(e.clientX, e.clientY);
     if (!hit) return;
-    heroRef.current?.style.setProperty("--ox", `${(hit.px * 100).toFixed(2)}%`);
+    heroRef.current?.style.setProperty("--ox", `${(hit.ex * 100).toFixed(2)}%`);
     heroRef.current?.style.setProperty("--oy", `${(hit.py * 100).toFixed(2)}%`);
     setView("outside");
     setAnim("out");
@@ -174,9 +243,17 @@ export default function Portfolio() {
 
       <header className="pf-header">
         <div className="wrap">
-          <nav>
+          <nav ref={navRef} data-open={navOpen ? "1" : undefined}>
             <a className="brand" href="#top"><span className="seal">LC</span> Linda&nbsp;Chen</a>
-            <ul className="navlinks">
+            <button
+              className="navtoggle"
+              aria-label="Menu"
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              <span /><span /><span />
+            </button>
+            <ul className="navlinks" onClick={() => setNavOpen(false)}>
               <li><a href="#about">About</a></li>
               <li><a href="#experience">Experience</a></li>
               <li><a href="#projects">Projects</a></li>
@@ -190,7 +267,7 @@ export default function Portfolio() {
         <section
           className="hero"
           ref={heroRef}
-          data-sky={sky}
+          data-day={day}
           data-view={view}
           data-anim={anim}
           data-hot={hot ? "1" : undefined}
@@ -199,8 +276,14 @@ export default function Portfolio() {
           onMouseLeave={() => setHot(false)}
         >
           <div className="hero-art" ref={artRef} aria-hidden="true">
+            <div className="hero-scene hero-sky" data-sky={skyA} data-on={onB ? undefined : "1"} />
+            <div className="hero-scene hero-sky" data-sky={skyB} data-on={onB ? "1" : undefined} />
             <div className="hero-scene hero-far" />
-            <div className="hero-scene hero-inside" />
+            <div className="hero-cafe">
+              <div className="hero-scene cafe-back" />
+              <div className="hero-scene cafe-day" />
+              <div className="hero-scene cafe-front" />
+            </div>
           </div>
           <div className="hero-card">
             <h1>Linda <em>Chen</em></h1>
